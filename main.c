@@ -114,7 +114,7 @@ typedef struct{
 /*                             demonstration code based on hardware semaphore */
 /* This define is present in both CM7/CM4 projects                            */
 /* To comment when developping/debugging on a single core                     */
-#define DUAL_CORE_BOOT_SYNC_SEQUENCE
+//#define DUAL_CORE_BOOT_SYNC_SEQUENCE
 
 #if defined(DUAL_CORE_BOOT_SYNC_SEQUENCE)
 #ifndef HSEM_ID_0
@@ -141,12 +141,16 @@ volatile State devState = {};
 volatile BME_Config devBME280 = {};
 volatile Device_Config dev = {};
 volatile float my_temperature;
-volatile uint8_t Temp_buffer[3];
+volatile uint8_t superBuffer[5];
 volatile int32_t rawTemp;
 volatile uint32_t rawPressure;
 volatile uint16_t rawHumidity;
 uint8_t min_temp_threshold = 20;
 uint8_t max_temp_threshold = 25;
+uint8_t minHumy = 20;
+uint8_t maxHumy = 25;
+uint8_t myID = 0;
+bool myBool;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -232,6 +236,24 @@ Error_Handler();
   MX_I2C2_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
+  dev.devState = IDLE;
+  dev.temperature = 0;
+  dev.humidity = 0;
+  dev.pressure = 0;
+
+  devBME280.ID = 0;
+
+
+
+  HAL_I2C_Mem_Read(&hi2c2, BME280_I2C_ADDRESS, BME280_REG_CHIP_ID, 1, &devBME280.ID, 1, 1000);
+  myID=devBME280.ID;
+  //Config BME EN BLOCKING
+  // LEEN LOS CALIBRation data blocking
+
+
+  HAL_TIM_Base_Start_IT(&htim7);
+
+
 
   /* USER CODE END 2 */
 
@@ -244,7 +266,6 @@ Error_Handler();
 	 			  HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 0);
 	 			  HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 0);
 	 			  HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 1);
-
 
 	 			  break;
 	 		  case MODO_TEMP:
@@ -261,18 +282,27 @@ Error_Handler();
 					 HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 1);
 					 HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 1);
 				  }
+	 			 break;
 
 
-	 			  break;
-	 		  case MODO_HUM:
+	 		 case MODO_HUM:
+				  if (dev.humidity < minHumy){
+					 HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 0);
+					 HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 0);
+					 HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 1);
+				  }else if ((dev.humidity > minHumy)&(dev.humidity < maxHumy)){
+					 HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 0);
+					 HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 1);
+					 HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 1);
+				  }else if (dev.humidity > maxHumy){
+					 HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 1);
+					 HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 1);
+					 HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 1);
+				  }
+				  break;
+	 		 default:
 
-
-
-
-	 			  break;
-	 		  default:
-
-	 			  break;
+	 		 	  break;
 	 	  }
     /* USER CODE END WHILE */
 
@@ -406,7 +436,7 @@ static void MX_TIM7_Init(void)
 
   /* USER CODE END TIM7_Init 1 */
   htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 7999;
+  htim7.Init.Prescaler = 9999;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim7.Init.Period = 9999;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -519,15 +549,29 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM7){ // Timer 1000 ms
-		HAL_I2C_Mem_Read_DMA(&hi2c2, BME280_I2C_ADDRESS, BME280_TEMP_MSB, 1, &Temp_buffer[0], 3);
+		// Lectura coeficientes
+		// Lectura Humedad
+		HAL_I2C_Mem_Read_DMA(&hi2c2, BME280_I2C_ADDRESS, BME280_TEMP_MSB, 1, &superBuffer[0], 5);
+
 	}
 }
 
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
-	rawTemp = ((uint32_t)Temp_buffer[0] << 12) | ((uint32_t)Temp_buffer[1] << 4)  | ((uint32_t)Temp_buffer[2] >> 4);
+
+
+	if(devBME280.ID == 0x60){
+		devBME280.deviceReady = true;
+		myID = devBME280.ID;
+		myBool = devBME280.deviceReady;
+	}else {
+		devBME280.deviceReady = false;
+		myID = devBME280.ID;
+		myBool = devBME280.deviceReady;
+	}
+	rawTemp = ((uint32_t)superBuffer[0] << 12) | ((uint32_t)superBuffer[1] << 4)  | ((uint32_t)superBuffer[2] >> 4);
 	//raw_Pressure =
-	//raw_Humidity =
+	rawHumidity = ((uint16_t)superBuffer[3]<<8 | ((uint16_t)superBuffer[4]));
 
 	processData(rawTemp, rawPressure, rawHumidity);
 }
@@ -566,7 +610,7 @@ void processData(int32_t rawTemp, uint32_t rawPressure, uint16_t rawHumidity) {
 	var1p = (((int64_t) 1 << 47) + var1p) * ((int64_t) devBME280.coeficientes.dig_P1) >> 33;
 
 	if (var1p == 0) {
-		return 0;  // avoid exception caused by division by zero
+		return;  // avoid exception caused by division by zero
 	}
 
 	resultPress = 1048576 - rawPressure;
