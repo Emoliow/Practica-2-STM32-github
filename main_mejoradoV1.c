@@ -239,9 +239,36 @@ Error_Handler();
 		  break;
 	  case MEASURE:
 		  HAL_ADC_Start_DMA(&hadc1, &buffer[0], 300);
+		  
 		  break;
 	  case PROCESS:
+		  arm_mean_f32(x, 150, &mean_ldr1);
+		  arm_min_f32(x, 150, &min_ldr1, &index_min_ldr1);
+		  arm_max_f32(x, 150, &max_ldr1, &index_max_ldr1);
+		  arm_std_f32(x, 150, &std_ldr1);
+		  arm_rms_f32(x, 150, &rms_ldr1);
+		  
+		  char buffer_ldr1[200];  
+		
+		  sprintf(buffer_ldr1, 
+		          "LDR1: Mean=%.2f, Min=%.2f (idx=%lu), Max=%.2f (idx=%lu), Std=%.2f, RMS=%.2f\r\n", 
+		          mean_ldr1, min_ldr1, index_min_ldr1, max_ldr1, index_max_ldr1, std_ldr1, rms_ldr1);
+		  
+		  HAL_UART_Transmit(&huart3, (uint8_t*)buffer_ldr1, strlen(buffer_ldr1), 1000);
 
+		  arm_mean_f32(y, 150, &mean_ldr2);
+		  arm_min_f32(y, 150, &min_ldr2, &index_min_ldr2);
+		  arm_max_f32(y, 150, &max_ldr2, &index_max_ldr2);
+		  arm_std_f32(y, 150, &std_ldr2);
+		  arm_rms_f32(y, 150, &rms_ldr2);
+		  
+		  char buffer_ldr2[200];
+		
+		  sprintf(buffer_ldr2, 
+		          "LDR2: Mean=%.2f, Min=%.2f (idx=%lu), Max=%.2f (idx=%lu), Std=%.2f, RMS=%.2f\r\n", 
+		          mean_ldr2, min_ldr2, index_min_ldr2, max_ldr2, index_max_ldr2, std_ldr2, rms_ldr2);
+		  
+		  HAL_UART_Transmit(&huart3, (uint8_t*)buffer_ldr2, strlen(buffer_ldr2), 1000);
 		  break;
 	  default:
 		  break;
