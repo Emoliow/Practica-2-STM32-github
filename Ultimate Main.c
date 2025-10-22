@@ -200,11 +200,7 @@ Error_Handler();
   MX_ADC1_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-  float32_t x[4] = {1.0f, 20.f, 3.0f, 4.0f};
-  float32_t mean;
-  arm_mean_f32(x, 4, &mean);
-  char buffer[50];
-  sprintf(buffer, "Mean = %.2f\r\n, ", mean);  // "%.2f" -> 2 decimales
+
 
 
 
@@ -240,9 +236,57 @@ Error_Handler();
   /* USER CODE BEGIN WHILE */
   while (1)
    {
-    /* USER CODE END WHILE */
+	  switch(devState){
+	   	  case IDLE:
+	   		HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 0);
+	   		HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 0);
+	   		HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 1);
+	   		  break;
+	   	  case MEASURE:
+		   		HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 0);
+		   		HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 1);
+		   		HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 0);
+	   		  HAL_ADC_Start_DMA(&hadc1, &buffer[0], 300);
 
-    /* USER CODE BEGIN 3 */
+	   		  break;
+	   	  case PROCESS:
+		   		HAL_GPIO_WritePin(LED_ROJO_GPIO_Port, LED_ROJO_Pin, 1);
+		   		HAL_GPIO_WritePin(LED_AMARILLO_GPIO_Port, LED_AMARILLO_Pin, 0);
+		   		HAL_GPIO_WritePin(LED_VERDE_GPIO_Port, LED_VERDE_Pin, 0);
+	   		  arm_mean_f32(LDR1_V, 150, &mean_ldr1);
+	   		  arm_min_f32(LDR1_V, 150, &min_ldr1, &index_min_ldr1);
+	   		  arm_max_f32(LDR1_V, 150, &max_ldr1, &index_max_ldr1);
+	   		  arm_std_f32(LDR1_V, 150, &std_ldr1);
+	   		  arm_rms_f32(LDR1_V, 150, &rms_ldr1);
+
+	   		  char buffer_ldr1[200];
+
+	   		  sprintf(buffer_ldr1,
+	   		          "LDR1: Mean=%.2f, Min=%.2f (idx=%lu), Max=%.2f (idx=%lu), Std=%.2f, RMS=%.2f\r\n",
+	   		          mean_ldr1, min_ldr1, index_min_ldr1, max_ldr1, index_max_ldr1, std_ldr1, rms_ldr1);
+
+	   		  HAL_UART_Transmit(&huart3, (uint8_t*)buffer_ldr1, strlen(buffer_ldr1), 1000);
+
+	   		  arm_mean_f32(LDR2_V, 150, &mean_ldr2);
+	   		  arm_min_f32(LDR2_V, 150, &min_ldr2, &index_min_ldr2);
+	   		  arm_max_f32(LDR2_V, 150, &max_ldr2, &index_max_ldr2);
+	   		  arm_std_f32(LDR2_V, 150, &std_ldr2);
+	   		  arm_rms_f32(LDR2_V, 150, &rms_ldr2);
+
+	   		  char buffer_ldr2[200];
+
+	   		  sprintf(buffer_ldr2,
+	   		          "LDR2: Mean=%.2f, Min=%.2f (idx=%lu), Max=%.2f (idx=%lu), Std=%.2f, RMS=%.2f\r\n",
+	   		          mean_ldr2, min_ldr2, index_min_ldr2, max_ldr2, index_max_ldr2, std_ldr2, rms_ldr2);
+
+	   		  HAL_UART_Transmit(&huart3, (uint8_t*)buffer_ldr2, strlen(buffer_ldr2), 1000);
+	   		  break;
+	   	  default:
+	   		  break;
+     /* USER CODE END WHILE */
+
+ 	  }
+     /* USER CODE BEGIN 3 */
    }
   /* USER CODE END 3 */
 }
